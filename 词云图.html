@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全能形状词云生成器 (8种形状)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
+    <style>
+        :root {
+            --primary: #6c5ce7; /* 改用更优雅的紫色系 */
+            --secondary: #a29bfe;
+            --bg: #dfe6e9;
+            --panel: #ffffff;
+            --text: #2d3436;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            margin: 0; padding: 0;
+            background-color: var(--bg);
+            display: flex; height: 100vh; overflow: hidden; color: var(--text);
+        }
+
+        /* 左侧配置栏 */
+        .sidebar {
+            width: 350px;
+            background-color: var(--panel);
+            padding: 25px;
+            box-shadow: 5px 0 20px rgba(0,0,0,0.05);
+            display: flex; flex-direction: column; gap: 18px; z-index: 10;
+            overflow-y: auto;
+        }
+        
+        h2 { margin: 0 0 10px 0; font-size: 1.6rem; color: var(--primary); display: flex; align-items: center; gap: 10px;}
+        .subtitle { font-size: 0.85rem; color: #888; margin-top: -10px; margin-bottom: 5px; }
+
+        label { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; display: block; color: #555;}
+        
+        textarea {
+            width: 100%; height: 140px; padding: 12px;
+            border: 2px solid #eee; border-radius: 8px;
+            resize: none; font-family: inherit; box-sizing: border-box;
+            font-size: 0.9rem; transition: border 0.3s;
+            background: #fafafa;
+        }
+        textarea:focus { border-color: var(--primary); outline: none; background: #fff;}
+        
+        /* 形状选择框样式优化 */
+        select#shapeSelect {
+            border: 2px solid var(--primary);
+            background-color: #f3f0ff;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        select, input[type="range"] {
+            width: 100%; padding: 10px; border: 2px solid #eee;
+            border-radius: 8px; background: white; cursor: pointer; box-sizing: border-box;
+            font-size: 1rem;
+        }
+        input[type="color"] { width: 100%; height: 45px; padding: 4px; border: 2px solid #eee; border-radius: 8px; cursor: pointer;}
+
+        .btn-group { display: flex; gap: 15px; margin-top: auto; padding-top: 20px;}
+        button {
+            flex: 1; padding: 15px; border: none; border-radius: 10px;
+            cursor: pointer; font-weight: 700; font-size: 1rem; color: white;
+            transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        button:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); }
+        button:disabled { opacity: 0.7; cursor: not-allowed; transform: none!important; }
+        .btn-gen { background: linear-gradient(135deg, var(--primary), #8e44ad); }
+        .btn-down { background: linear-gradient(135deg, #00b894, #55efc4); }
+
+        /* 右侧画布 */
+        .main-content {
+            flex: 1; padding: 30px;
+            display: flex; justify-content: center; align-items: center;
+            background-image: radial-gradient(#b2bec3 2px, transparent 2px);
+            background-size: 30px 30px;
+        }
+        #canvas-wrapper {
+            width: 100%; height: 100%; max-width: 900px; max-height: 900px;
+            background: white; border-radius: 20px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.1);
+            position: relative; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+        }
+        #placeholder-text { position: absolute; color: #ccc; font-size: 1.5rem; font-weight: bold; opacity: 0.6;}
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>🎨 多形状词云</h2>
+        <div class="subtitle">已解锁 8 种几何形状</div>
+        
+        <div>
+            <label>1. 输入文本 (自动智能分词):</label>
+            <textarea id="textInput" placeholder="输入大量文本...">创新 科技 未来 梦想 坚持 勇气 探索 智慧 合作 共赢 挑战 机遇 突破 极限 巅峰 荣耀 辉煌 传奇 永恒 卓越 非凡 极致 完美 艺术 灵感 创意 设计 美学 潮流 时尚 经典 传承 文化 历史 文明 宇宙 星辰 大海 山川 河流 自然 生命 奇迹 希望 光明 温暖 守护 陪伴 成长 蜕变 新生 力量 信仰</textarea>
+        </div>
+
+        <div>
+            <label style="color: var(--primary);">2. 选择形状:</label>
+            <select id="shapeSelect">
+                <option value="cardioid" selected>❤️ 心形 (Heart)</option>
+                <option value="circle">☁️ 云形/圆形 (Cloud/Circle)</option>
+                <option value="star">⭐ 星形 (Star)</option>
+                <option value="triangle">▲ 三角形 (Triangle)</option>
+                <option value="triangle-forward">▶️ 播放键 (Play)</option>
+                <option value="pentagon">🏠 五边形 (Pentagon)</option>
+                <option value="diamond">♦️ 菱形 (Diamond)</option>
+                <option value="square">⏹️ 正方形 (Square)</option>
+            </select>
+        </div>
+
+        <div>
+            <label>3. 密度与大小:</label>
+            <input type="range" id="sizeRange" min="5" max="40" value="20">
+        </div>
+
+        <div>
+            <label>4. 背景颜色:</label>
+            <input type="color" id="bgColor" value="#ffffff">
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-gen" onclick="startGenerate()">🚀 生成</button>
+            <button class="btn-down" onclick="downloadImg()">🖼️ 下载</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="canvas-wrapper">
+            <span id="placeholder-text">等待指令...</span>
+            <canvas id="myCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('myCanvas');
+        const wrapper = document.getElementById('canvas-wrapper');
+        const btnGen = document.querySelector('.btn-gen');
+        const placeholder = document.getElementById('placeholder-text');
+
+        function resize() {
+            canvas.width = wrapper.clientWidth;
+            canvas.height = wrapper.clientHeight;
+        }
+        window.addEventListener('resize', resize);
+
+        // 文本处理：保持高密度切分
+        function processText(text) {
+            let clean = text.replace(/[^\w\u4e00-\u9fa5]/g, ' ');
+            let words = [];
+            let rawParts = clean.split(/\s+/);
+            
+            rawParts.forEach(part => {
+                if (part.length > 0 && part.length <= 4) {
+                    words.push(part);
+                } else if (part.length > 4) {
+                    // 长词切分，保证填充率
+                    for (let i = 0; i < part.length - 1; i += 2) words.push(part.substr(i, 2));
+                }
+            });
+
+            const freq = {};
+            words.forEach(w => freq[w] = (freq[w] || 0) + 1);
+            // 增加到 600 个词，保证正方形等大面积形状能填满
+            return Object.entries(freq).sort((a,b) => b[1] - a[1]).slice(0, 600);
+        }
+
+        function startGenerate() {
+            btnGen.textContent = '⚡ 计算中...';
+            btnGen.disabled = true;
+            placeholder.style.display = 'none';
+
+            // 3秒防卡死恢复
+            setTimeout(() => {
+                btnGen.textContent = '🚀 生成';
+                btnGen.disabled = false;
+            }, 3000);
+
+            resize();
+            
+            const text = document.getElementById('textInput').value;
+            const list = processText(text);
+            const shape = document.getElementById('shapeSelect').value;
+            const userScale = document.getElementById('sizeRange').value;
+            const bg = document.getElementById('bgColor').value;
+
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (list.length < 10) {
+                alert("文本太少，无法撑起形状！");
+                return;
+            }
+
+            const baseDimension = Math.min(canvas.width, canvas.height);
+            const baseScale = baseDimension / 1000; 
+
+            WordCloud(canvas, {
+                list: list,
+                shape: shape,
+                // 网格大小：正方形需要更密的网格，其他形状适中
+                gridSize: Math.max(Math.floor(baseDimension / 350), 2),
+                weightFactor: function (size) {
+                    // 大小计算公式：根据用户滑块动态调整
+                    return (2 + Math.log(size + 1) * userScale * 1.5) * baseScale;
+                },
+                fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
+                // 使用冷色调+紫色调的随机色
+                color: function() {
+                    const hue = Math.floor(Math.random() * 360);
+                    return `hsl(${hue}, 60%, 45%)`; 
+                },
+                backgroundColor: bg,
+                rotateRatio: 0.2, // 20% 概率旋转
+                rotationSteps: 2,
+                shrinkToFit: true,
+                drawOutOfBound: false,
+                wordcloudfinished: function() {
+                     btnGen.textContent = '✅ 完成！';
+                     setTimeout(() => {
+                        if (!btnGen.disabled) btnGen.textContent = '🚀 生成';
+                     }, 1500);
+                }
+            });
+        }
+
+        function downloadImg() {
+            const temp = document.createElement('canvas');
+            temp.width = canvas.width * 2;
+            temp.height = canvas.height * 2;
+            const ctx = temp.getContext('2d');
+            ctx.scale(2, 2);
+            ctx.fillStyle = document.getElementById('bgColor').value;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(canvas, 0, 0);
+            
+            const shapeName = document.getElementById('shapeSelect').value;
+            const a = document.createElement('a');
+            a.download = `wordcloud-${shapeName}-${Date.now()}.png`;
+            a.href = temp.toDataURL('image/png');
+            a.click();
+        }
+
+        // 初始运行
+        setTimeout(() => { resize(); startGenerate(); }, 600);
+    </script>
+</body>
+</html>
